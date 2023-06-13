@@ -39,8 +39,7 @@ def update_endpoints(url: str, configName: str) -> None:
         logger.warning(f'FCOC API endpoints were not updated successfully. Fallback endpoints: {config.get_list(configName)}; Code: {msg.status_code}')
 
 
-def post_event(type: str, url: str, data: dict, game_mode: str) -> None:
-    data['game_mode'] = game_mode
+def post_event(type: str, url: str, data: str) -> None:
     msg = requests.post(f"{url}/{type.lower()}/", data)
     if msg.status_code == 200:
         logger.info(f'FCOC API update posted successfully. Type: {type}; Code: {msg.status_code}')
@@ -62,7 +61,7 @@ def plugin_start3(plugin_dir: str) -> str:
         logger.info('Initialising FCOC config.')
         config.set("FCOC_API_endpoints", [])
     config.set("FCOC_API_URL", "http://api.fcoc.space:8080")
-    config.set("FCOC_version", "1.1.0")
+    config.set("FCOC_version", "1.1.1")
     url = config.get_str('FCOC_API_URL')
     version = config.get_str('FCOC_version')
     update_endpoints_thread = Thread(target=update_endpoints, args=(url, "FCOC_API_endpoints"))
@@ -72,12 +71,13 @@ def plugin_start3(plugin_dir: str) -> str:
 
 
 def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Dict[str, Any], state: Dict[str, Any]) -> Optional[str]:
-    if entry['event'].lower in config.get_list('FCOC_API_endpoints'):
+    if entry['event'].lower() in config.get_list('FCOC_API_endpoints'):
         game_mode = "Legacy"
         if monitor.is_live_galaxy():
             game_mode = "Horizons"
         if state['Odyssey']:
             game_mode = "Odyssey"
         url = config.get_str('FCOC_API_URL')
-        post_event_thread = Thread(target=post_event, args=(entry['event'], url, json.dumps(entry), game_mode))
+        entry['game_mode'] = game_mode
+        post_event_thread = Thread(target=post_event, args=(entry['event'], url, json.dumps(entry)))
         post_event_thread.start()
